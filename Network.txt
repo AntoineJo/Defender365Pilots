@@ -1,0 +1,13 @@
+//List all connections between computers of the environment
+let myNetwork = 
+DeviceNetworkInfo
+| where NetworkAdapterStatus == "Up" //and NetworkAdapterType == "Ethernet"
+| mv-expand parse_json(IPAddresses)
+| extend Ipv4=parse_json(IPAddresses)
+| where tostring(Ipv4.AddressType) == "Private"
+| extend RemoteDevice = DeviceName
+| distinct RemoteDevice, tostring(IPAddresses), tostring(Ipv4.IPAddress);
+DeviceNetworkEvents
+| join myNetwork on $left.RemoteIP == $right.Ipv4_IPAddress
+| project Timestamp, LocalDevice=DeviceName, LocalPort, RemoteDevice, ActionType,  RemotePort, Protocol, InitiatingProcessCommandLine, InitiatingProcessParentFileName, InitiatingProcessAccountName
+//are computer discussing together

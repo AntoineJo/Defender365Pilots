@@ -1,0 +1,3 @@
+//Count alert by alert title
+DeviceAlertEvents
+| summarize count() by Title, DeviceName

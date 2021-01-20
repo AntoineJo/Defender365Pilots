@@ -1,0 +1,14 @@
+DeviceEvents
+| where Timestamp < ago(30d)
+| where ActionType in ("AntivirusDetection", "AntivirusReport","PowerShellCommand") 
+| order by Timestamp asc 
+
+//Get AMSI detections and tries to find related powershell command
+DeviceEvents
+| where Timestamp < ago(30d)
+| where ActionType in ("AntivirusDetection", "AntivirusReport") and FileName startswith "amsi"
+| union (DeviceEvents
+    | where Timestamp < ago(30d)
+    | where ActionType in ("PowerShellCommand"))
+| project Timestamp, DeviceName, ActionType, FileName, InitiatingProcessCommandLine, AdditionalFields
+| order by Timestamp asc 
