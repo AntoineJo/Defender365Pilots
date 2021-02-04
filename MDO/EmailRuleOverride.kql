@@ -1,0 +1,13 @@
+EmailEvents
+| where EmailDirection == "Inbound" and OrgLevelPolicy != '' and OrgLevelAction == "Allow" and DeliveryLocation in ("On-premises/external", "Inbox/folder") 
+| extend detection= parse_json(ConfidenceLevel)
+| where tostring(detection.Spam) == "Skipped" and tostring(detection.Phish) != ''
+| extend allowed = case(
+                    OrgLevelPolicy == "Sender address list (Safe sender / Blocked sender)", pack_array(SenderFromAddress, SenderMailFromAddress), 
+                    OrgLevelPolicy == "Sender domain list (Safe domain / Blocked domain)", pack_array(SenderFromDomain, SenderFromDomain),
+                    OrgLevelPolicy == "Connection policy",SenderIPv4 ,
+                    OrgLevelPolicy == "Exchange transport rule",pack_array(SenderFromAddress, SenderMailFromAddress, SenderIPv4),
+                    '?')
+| summarize count(), NetworkMessageId=any(NetworkMessageId), Detection=any(DetectionMethods) by allowed, OrgLevelPolicy, OrgLevelAction, Connectors, ConfidenceLevel 
+| project allowed, Detection, OrgLevelPolicy, Connectors, ConfidenceLevel, count_ , NetworkMessageId 
+| order by count_
