@@ -1,0 +1,5 @@
+EmailEvents
+| where DetectionMethods != '' and EmailDirection == "Inbound"
+| extend userDomain = split(RecipientEmailAddress,'@')
+| summarize count() by tostring(userDomain[1])
+| render piechart 

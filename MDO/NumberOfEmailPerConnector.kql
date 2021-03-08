@@ -1,0 +1,17 @@
+//display email per Connectors
+// the aim is to detect emails coming directly from internet when customers are using a third party email gateway
+EmailEvents 
+| where EmailDirection == 'Inbound'
+| extend Connectors = iif(Connectors == '', 'From Internet to O365',Connectors)
+| summarize count() by Connectors
+| render piechart
+
+//get the details of emails coming from Internet directly
+//   this query is interesting only when emails are not supposed to come from internet directly
+EmailEvents 
+| where Connectors == '' and EmailDirection == 'Inbound'
+| summarize count(), NetworkMessageIdSample = any(NetworkMessageId) by SenderMailFromAddress, SenderFromAddress, SenderIPv4 
+| order by count_ desc
+
+EmailEvents 
+| where EmailDirection == 'Inbound' and SenderFromDomain like "sopra" and DetectionMethods != ''
