@@ -149,7 +149,6 @@
 				<div class="childContainer" >
 					<xsl:apply-templates select = "ProductionPOC" />
 				</div>
-				
 			</div>
 			<div class="container">
 				<div class="childContainer" >
@@ -170,6 +169,9 @@
 			<div class="container">
 				<div class="childContainer">
 					<xsl:apply-templates select = "AVDetailsInfo" />
+				</div>
+				<div class="childContainer">
+					<xsl:apply-templates select = "FWDetailsInfo" />
 				</div>
 			</div>
 		</div>
@@ -369,6 +371,41 @@
 	</xsl:template>
 	<xsl:template match="AVDetailsInfo">
 		<h3>EPP Component Details</h3>
+		<table class="details">
+			<xsl:for-each select="./*">
+				<tr>
+					<th width="350px">
+						<xsl:value-of select="./@displayName"/>
+					</th>
+					<td>
+						<xsl:choose>
+							<xsl:when test="alert = 'High'">
+								<span style="color:red">
+									<xsl:value-of select="value"/>
+								</span>
+							</xsl:when>
+							<xsl:when test="alert = 'Medium'">
+								<span style="color:orange">
+									<xsl:value-of select="value"/>
+								</span>
+							</xsl:when>
+							<xsl:when test="alert = 'None'">
+								<span style="color:green">
+									<xsl:value-of select="value"/>
+								</span>
+							</xsl:when>
+							<xsl:otherwise>
+								<xsl:value-of select="value"/>
+							</xsl:otherwise>
+						</xsl:choose>
+					</td>
+				</tr>
+			</xsl:for-each>
+		</table>
+		<br></br>
+	</xsl:template>
+	<xsl:template match="FWDetailsInfo">
+		<h3>Defender Firewall Config Details</h3>
 		<table class="details">
 			<xsl:for-each select="./*">
 				<tr>

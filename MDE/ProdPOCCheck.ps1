@@ -554,6 +554,10 @@ function InitXmlLog($path) {
     $script:xmlDoc = [xml](get-content $path)
     $ProdPOCNode = $script:xmlDoc.CreateNode("element", "ProductionPOC", "") 
     $script:xmlDoc.MDEResults.AppendChild($ProdPOCNode) | Out-Null
+    $ProdPOCNode = $script:xmlDoc.CreateNode("element", "AVDetailsInfo", "") 
+    $script:xmlDoc.MDEResults.AppendChild($ProdPOCNode) | Out-Null
+    $ProdPOCNode = $script:xmlDoc.CreateNode("element", "FWDetailsInfo", "") 
+    $script:xmlDoc.MDEResults.AppendChild($ProdPOCNode) | Out-Null
     #$script:xmlDoc = [xml]"<?xml version=""1.0"" encoding=""utf-8""?><MDEResults><general></general><ProductionPOC></ProductionPOC><DeviceIdentity></DeviceIdentity><MDAV></MDAV><MDE></MDE><OS></OS><Management></Management><Network></Network><events></events></MDEResults>"
 }
 
@@ -585,6 +589,7 @@ function Write-Report($section, $subsection, $displayName, $value, $alert) {
     $xmlRoot = $script:xmlDoc.SelectNodes("/MDEResults")
     $InputNode = $xmlRoot.SelectSingleNode($section)
     $InputNode.AppendChild($subsectionNode) | Out-Null
+    return
 }
 
 Function report($keypath, $value, $hash = $null, $alert = "", $child = $false) {
@@ -1307,6 +1312,9 @@ Function AnalyzeClientAnalyzer($path) {
         report "Error.MDAV.MDAVState" "Error" $script:checks
     }
     
+
+    ## Check MD Firewall config
+    checkWFConfig
 }
 
 
@@ -1438,7 +1446,7 @@ Function displayReport {
                 Write-Report -section "ProductionPOC" -subsection "comment" -displayName "comment" -value "You can add a client side SCP + enable AAD Connect device sync only for the tests devices. Here is the link to the official doc: https://learn.microsoft.com/en-us/azure/active-directory/devices/howto-hybrid-azure-ad-join"
 
                 $ProdPOCStatus = 5
-                return
+                
             }
 
             Write-Report -section "ProductionPOC" -subsection "deviceMgmt" -displayName "MDE Device Management channel" -value "MDE Security Settings Magement (MEM)"
@@ -1460,7 +1468,7 @@ Function displayReport {
                     
                 Write-Host "Easy you are already HAADJ + MDE Configuration Management is configured" -ForegroundColor Green
                 $ProdPOCStatus = 2
-                Write-Report -section "ProductionPOC" -subsection "deviceMgmt" -displayName "MDE Device Management channel" -value "MDE Security Settings Magement (MEM)"
+                
             }
                         
             break
@@ -1555,7 +1563,7 @@ Function displayReport {
             else {
                     
                 Write-Host "Easy you are already HAADJ + MDE Configuration Management is configured" -ForegroundColor Green
-                Write-Report -section "ProductionPOC" -subsection "deviceMgmt" -displayName "MDE Device Management channel" -value "MDE Security Settings Magement (MEM)"
+                #Write-Report -section "ProductionPOC" -subsection "deviceMgmt" -displayName "MDE Device Management channel" -value "MDE Security Settings Magement (MEM)"
             }
         }
         default: {
@@ -1596,28 +1604,28 @@ Function displayReport {
         $ProdPOCStatus = 5
         $comment = "Uninstall or disable the third party AV"
         Write-Report -section "ProductionPOC" -subsection "comment" -displayName "Comment" -value $comment
-         
-        #Check 3rd party AV & FW
-        foreach ($i in $script:checks.MDAV.WindowsSecurityCenter.Keys) {
-            if ($i -like "AV-*") {
-                if ($script:checks.MDAV.WindowsSecurityCenter[$i].Name -ne "Microsoft Defender Antivirus" -and $script:checks.MDAV.WindowsSecurityCenter[$i].State -eq "0") {
-                    Write-Report -section "AVDetailsInfo" -subsection "thirdpartyAV" -displayName "Third Party AV" -value $script:checks.MDAV.WindowsSecurityCenter[$i].Name
-                }
-            }
-            elseif ($i -like "FW-*") {
-                if ($script:checks.MDAV.WindowsSecurityCenter[$i].Name -ne "Windows Firewall" -and $script:checks.MDAV.WindowsSecurityCenter[$i].State -eq "0") {
-                    #State =0 means this is active
-                    Write-Report -section "AVDetailsInfo" -subsection "thirdpartyFW" -displayName "Third Party FW" -value $script:checks.MDAV.WindowsSecurityCenter[$i].Name
-                }
-            }
-        }
         
     }
 
+    #Check 3rd party AV & FW
+    foreach ($i in $script:checks.MDAV.WindowsSecurityCenter.Keys) {
+        if ($i -like "AV-*") {
+            if ($script:checks.MDAV.WindowsSecurityCenter[$i].State -eq "0") {
+                Write-Report -section "AVDetailsInfo" -subsection "activeAV" -displayName "Enabled AV" -value ($script:checks.MDAV.WindowsSecurityCenter[$i].Name)
+            }
+        }
+        elseif ($i -like "FW-*") {
+            if ($script:checks.MDAV.WindowsSecurityCenter[$i].State -eq "0") {
+                #State =0 means this is active
+                Write-Report -section "AVDetailsInfo" -subsection "thirdpartyFW" -displayName "Enabled FW" -value ($script:checks.MDAV.WindowsSecurityCenter[$i].Name)
+            }
+        }
+    }
+
     #Display MDAV config
-    Write-Report -section -section "AVDetailsInfo" -subsection "Reattime" -displayName "Realtime monitoring" -value $script:checks.MDAV.Config.RealtimeMonitoring
-    Write-Report -section -section "AVDetailsInfo" -subsection "Reattime" -displayName "Realtime monitoring" -value $script:checks.MDAV.Config.BehaviorMonitoring
-    Write-Report -section -section "AVDetailsInfo" -subsection "Reattime" -displayName "Realtime monitoring" -value $script:checks.MDAV.Config.MAPSReporting
+    Write-Report -section "AVDetailsInfo" -subsection "RealtimeMonitoring" -displayName "Realtime monitoring" -value $script:checks.MDAV.Config.RealtimeMonitoring
+    Write-Report -section "AVDetailsInfo" -subsection "BehaviorMonitoring" -displayName "Behavior monitoring" -value $script:checks.MDAV.Config.BehaviorMonitoring
+    Write-Report -section "AVDetailsInfo" -subsection "MAPS" -displayName "MAPS configuration" -value $script:checks.MDAV.Config.MAPSReporting
 
 
     #KB missing patches
@@ -1633,7 +1641,23 @@ Function displayReport {
 
     #third party FW
     #MDFW need to check our firewall (service status, profile configuration)
-    #netsh show advfirewall show all | or powershell
+    Write-Report -section "FWDetailsInfo" -subsection "DomainEnabled" -displayName "Domain profile Enabled" -value $script:checks.MDFW.Profiles.Domain.Enabled
+    Write-Report -section "FWDetailsInfo" -subsection "DomainInboundAction" -displayName "Domain profile Inbound Action" -value $script:checks.MDFW.Profiles.Domain.DefaultInboundAction
+    Write-Report -section "FWDetailsInfo" -subsection "DefaultOutboundAction" -displayName "Domain profile Outbound Action" -value $script:checks.MDFW.Profiles.Domain.DefaultOutboundAction
+    Write-Report -section "FWDetailsInfo" -subsection "AllowLocalFirewallRules" -displayName "Allow local rules" -value $script:checks.MDFW.Profiles.Domain.AllowLocalFirewallRules
+
+    Write-Report -section "FWDetailsInfo" -subsection "PublicEnabled" -displayName "Public profile Enabled" -value $script:checks.MDFW.Profiles.Public.Enabled
+    Write-Report -section "FWDetailsInfo" -subsection "PublicInboundAction" -displayName "Public profile Inbound Action" -value $script:checks.MDFW.Profiles.Public.DefaultInboundAction
+    Write-Report -section "FWDetailsInfo" -subsection "DefaultOutboundAction" -displayName "Public profile Outbound Action" -value $script:checks.MDFW.Profiles.Public.DefaultOutboundAction
+    Write-Report -section "FWDetailsInfo" -subsection "AllowLocalFirewallRules" -displayName "Allow local rules" -value $script:checks.MDFW.Profiles.Public.AllowLocalFirewallRules
+
+    Write-Report -section "FWDetailsInfo" -subsection "PrivateEnabled" -displayName "Private profile Enabled" -value $script:checks.MDFW.Profiles.Private.Enabled
+    Write-Report -section "FWDetailsInfo" -subsection "PrivateInboundAction" -displayName "Private profile Inbound Action" -value $script:checks.MDFW.Profiles.Private.DefaultInboundAction
+    Write-Report -section "FWDetailsInfo" -subsection "DefaultOutboundAction" -displayName "Private profile Outbound Action" -value $script:checks.MDFW.Profiles.Private.DefaultOutboundAction
+    Write-Report -section "FWDetailsInfo" -subsection "AllowLocalFirewallRules" -displayName "Allow local rules" -value $script:checks.MDFW.Profiles.Private.AllowLocalFirewallRules
+
+    Write-Report -section "FWDetailsInfo" -subsection "Packet" -displayName "Audit Packets" -value $script:checks.MDFW.Auditing.Packet.Audit
+    Write-Report -section "FWDetailsInfo" -subsection "Connection" -displayName "Audit Connection" -value $script:checks.MDFW.Auditing.Connection.Audit
 
     switch ($ProdPOCStatus) {
         1 { Write-Report -section "ProductionPOC" -subsection "status" -displayName "Production POC Status" -value "OK"  -alert "None"; break }
@@ -1642,6 +1666,23 @@ Function displayReport {
         3 { Write-Report -section "ProductionPOC" -subsection "status" -displayName "Production POC Status" -value "Manual analysis needed" -alert "Medium"; break }
     }
 }
+
+
+Function checkWFConfig {
+    $firewallconfig = Get-NetFirewallProfile
+
+    foreach ($i in $firewallconfig) {
+        report ("MDFW.Profiles."+$i.Name+".Enabled") $i.Enabled $script:checks
+        report ("MDFW.Profiles."+$i.Name+".DefaultInboundAction") $i.DefaultInboundAction $script:checks
+        report ("MDFW.Profiles."+$i.Name+".DefaultOutboundAction") $i.DefaultOutboundAction $script:checks
+        report ("MDFW.Profiles."+$i.Name+".AllowLocalFirewallRules") $i.AllowLocalFirewallRules $script:checks
+    }
+
+    $categories = "Filtering Platform Packet Drop,Filtering Platform Connection"
+    $current = auditpol /get /subcategory:"$($categories)" /r | ConvertFrom-Csv
+    report "MDFW.Auditing.Packet.Audit" ( ($current | where Subcategory -eq "Filtering Platform Packet Drop").'Inclusion Setting') $script:checks
+    report "MDFW.Auditing.Connection.Audit" ( ($current | where Subcategory -eq "Filtering Platform Connection").'Inclusion Setting') $script:checks
+}    
 
 Function checkOS {
 
@@ -1726,7 +1767,7 @@ Function checkOS {
     }
 }
 
-Function colletOutputs {
+Function collectOutputs {
     
     $compress = @{
         Path             = ($script:LogPath)
@@ -1760,15 +1801,22 @@ function Process-XSLT {
 
             return $True
         } 
+        else {
+            Write-Host "Cannot generate html file as one of the input file is missing $XmlPath or $XslPath" -ForegroundColor Yellow
+        }
     }
     Catch {
+        Write-Host "Cannot generate html file $_" -ForegroundColor Yellow
         return $False
     }
 }
 
 cls
+
+
       
-$script:LogPath = ((Get-Location).Path + "\MDECheckLogs")
+$script:LogPath = ((Split-Path -parent $PSCommandPath) + "\MDECheckLogs")
+
 $script:MDEAnalizerResultPath 
 
 $ErrorActionPreference = 'silentlycontinue'
@@ -1822,11 +1870,6 @@ AnalyzeClientAnalyzer $path
 $script:checks | ConvertTo-Json -Depth 9 | Out-File ($script:LogPath + "\ProdPOCChecks.json")
 
 
-
-#Process-XSLT ".\output.xml" .\MDEReport.xslt .\output.html
-
-
-
 displayReport
 
 $script:xmlDoc.Save($script:LogPath + "\output.xml")
@@ -1839,5 +1882,4 @@ if (Test-Path ($script:LogPath + "\output.xml") -ne $true) {
 
 Process-XSLT ($script:LogPath + "\output.xml") ($script:LogPath + "\..\MDEReport.xslt") ($script:LogPath + "\output.html")
 
-colletOutputs
-#($script:LogPath + "\output.html")
+collectOutputs
