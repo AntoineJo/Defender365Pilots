@@ -11,6 +11,7 @@ Function PSasAdmin {
 Function RunMDEClientAnalyzer {
     $url = "https://aka.ms/BetaMDEAnalyzer"
     mkdir ($script:LogPath + "\..\tools\") | Out-Null
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     Invoke-WebRequest $url -UseBasicParsing -OutFile ($script:LogPath + "\..\tools\mdeclient.zip")
     Expand-Archive ($script:LogPath + "\..\tools\mdeclient.zip") -DestinationPath ($script:LogPath + "\..\tools\") -Force
     &($script:LogPath + "\..\tools\MDEClientAnalyzer.cmd")
