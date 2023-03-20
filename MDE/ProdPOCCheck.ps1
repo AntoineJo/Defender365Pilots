@@ -1318,7 +1318,6 @@ Function AnalyzeClientAnalyzer($path) {
     checkWFConfig
 }
 
-
 Function displayReport {
 
     $ProdPOCStatus = ""
@@ -1642,6 +1641,7 @@ Function displayReport {
 
     #third party FW
     #MDFW need to check our firewall (service status, profile configuration)
+    {
     Write-Report -section "FWDetailsInfo" -subsection "DomainEnabled" -displayName "Domain profile Enabled" -value $script:checks.MDFW.Profiles.Domain.Enabled
     Write-Report -section "FWDetailsInfo" -subsection "DomainInboundAction" -displayName "Domain profile Inbound Action" -value $script:checks.MDFW.Profiles.Domain.DefaultInboundAction
     Write-Report -section "FWDetailsInfo" -subsection "DefaultOutboundAction" -displayName "Domain profile Outbound Action" -value $script:checks.MDFW.Profiles.Domain.DefaultOutboundAction
@@ -1659,6 +1659,12 @@ Function displayReport {
 
     Write-Report -section "FWDetailsInfo" -subsection "Packet" -displayName "Audit Packets" -value $script:checks.MDFW.Auditing.Packet.Audit
     Write-Report -section "FWDetailsInfo" -subsection "Connection" -displayName "Audit Connection" -value $script:checks.MDFW.Auditing.Connection.Audit
+    }
+
+    #Other MDE auditing
+    Write-Report -section "MDEDevConfig" -subsection "UserMgmtAudit" -displayName "Audit User Account Management" -value $script:checks.MDE.Auditing.UserMgmt.Audit
+    Write-Report -section "MDEDevConfig" -subsection "GroupMgmtAudit" -displayName "Audit Security Group Management" -value $script:checks.MDE.Auditing.GroupMgmt.Audit
+    Write-Report -section "MDEDevConfig" -subsection "SecSystemExtentionAudit" -displayName "Audit Security System Extension" -value $script:checks.MDE.Auditing.SecSystemExtention.Audit
 
     switch ($ProdPOCStatus) {
         1 { Write-Report -section "ProductionPOC" -subsection "status" -displayName "Production POC Status" -value "OK"  -alert "None"; break }
@@ -1667,7 +1673,6 @@ Function displayReport {
         3 { Write-Report -section "ProductionPOC" -subsection "status" -displayName "Production POC Status" -value "Manual analysis needed" -alert "Medium"; break }
     }
 }
-
 
 Function checkWFConfig {
     $firewallconfig = Get-NetFirewallProfile
@@ -1684,6 +1689,15 @@ Function checkWFConfig {
     report "MDFW.Auditing.Packet.Audit" ( ($current | where Subcategory -eq "Filtering Platform Packet Drop").'Inclusion Setting') $script:checks
     report "MDFW.Auditing.Connection.Audit" ( ($current | where Subcategory -eq "Filtering Platform Connection").'Inclusion Setting') $script:checks
 }    
+
+Function checkAdvAuditConfig {
+    $categories = "User Account Management,Security Group Management,Security System Extension"
+    $current = auditpol /get /subcategory:"$($categories)" /r | ConvertFrom-Csv
+
+    report "MDE.Auditing.UserMgmt.Audit" ( ($current | where Subcategory -eq "User Account Management").'Inclusion Setting') $script:checks
+    report "MDE.Auditing.GroupMgmt.Audit" ( ($current | where Subcategory -eq "Security Group Management").'Inclusion Setting') $script:checks
+    report "MDE.Auditing.SecSystemExtention.Audit" ( ($current | where Subcategory -eq "Security System Extension").'Inclusion Setting') $script:checks
+}
 
 Function checkOS {
 
@@ -1788,6 +1802,14 @@ function Process-XSLT {
         [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][String]$HtmlOutput )
 
     Try {
+        if(!(Test-path($XslPath)))
+        {
+            $url = "https://raw.githubusercontent.com/AntoineJo/Defender365Pilots/master/MDE/MDEReport.xslt"
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+            Invoke-WebRequest $url -UseBasicParsing -OutFile $XslPath
+        }
+
+
         If ((Test-path($XmlPath)) -and (Test-path($XslPath))) {
             $myXslCompiledTransfrom = new-object System.Xml.Xsl.XslCompiledTransform
             $xsltArgList = New-Object System.Xml.Xsl.XsltArgumentList
