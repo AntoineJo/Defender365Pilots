@@ -1641,7 +1641,7 @@ Function displayReport {
 
     #third party FW
     #MDFW need to check our firewall (service status, profile configuration)
-    {
+    
     Write-Report -section "FWDetailsInfo" -subsection "DomainEnabled" -displayName "Domain profile Enabled" -value $script:checks.MDFW.Profiles.Domain.Enabled
     Write-Report -section "FWDetailsInfo" -subsection "DomainInboundAction" -displayName "Domain profile Inbound Action" -value $script:checks.MDFW.Profiles.Domain.DefaultInboundAction
     Write-Report -section "FWDetailsInfo" -subsection "DefaultOutboundAction" -displayName "Domain profile Outbound Action" -value $script:checks.MDFW.Profiles.Domain.DefaultOutboundAction
@@ -1659,9 +1659,10 @@ Function displayReport {
 
     Write-Report -section "FWDetailsInfo" -subsection "Packet" -displayName "Audit Packets" -value $script:checks.MDFW.Auditing.Packet.Audit
     Write-Report -section "FWDetailsInfo" -subsection "Connection" -displayName "Audit Connection" -value $script:checks.MDFW.Auditing.Connection.Audit
-    }
+    
 
     #Other MDE auditing
+    checkAdvAuditConfig
     Write-Report -section "MDEDevConfig" -subsection "UserMgmtAudit" -displayName "Audit User Account Management" -value $script:checks.MDE.Auditing.UserMgmt.Audit
     Write-Report -section "MDEDevConfig" -subsection "GroupMgmtAudit" -displayName "Audit Security Group Management" -value $script:checks.MDE.Auditing.GroupMgmt.Audit
     Write-Report -section "MDEDevConfig" -subsection "SecSystemExtentionAudit" -displayName "Audit Security System Extension" -value $script:checks.MDE.Auditing.SecSystemExtention.Audit
